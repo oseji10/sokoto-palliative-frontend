@@ -1,50 +1,10 @@
-// import { Helmet, HelmetProvider } from 'react-helmet-async';
-// import { useRouter } from 'next/navigation';
-// import { useEffect, useState } from 'react';
+"use client";
 
-// import Cookies from 'js-cookie'
-
-// type Props = {
-//   description?: string;
-//   children: JSX.Element | JSX.Element[];
-//   title?: string;
-// };
-
-// const PageContainer = ({ title, description, children }: Props) => {
-//   const router = useRouter();
-//   const [token, setToken] = useState<string | null>(null);
-//   const [role, setRole] = useState<string>('');
-//   const [name, setName] = useState<string>('');
-
-//   useEffect(() => {
-//     const authToken = Cookies.get('authToken');
-//     if (!authToken || authToken === 'null' || authToken === 'undefined') {
-//       router.push('/'); // Redirect if not authenticated
-//     } else {
-//       setToken(authToken);
-//       setRole(Cookies.get('role') || '');
-//       setName(Cookies.get('name') || '');
-//     }
-//   }, [router]);
-
-//   return (
-//     <HelmetProvider>
-//       <div>
-//         <Helmet>
-//           <title>{title}</title>
-//           <meta name="description" content={description} />
-//         </Helmet>
-//         {children}
-//       </div>
-//     </HelmetProvider>
-//   );
-// };
-
-// export default PageContainer;
 import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import api from '../../../../lib/api';
+import { CircularProgress, Box } from '@mui/material';
 
 type Props = {
   description?: string;
@@ -54,7 +14,7 @@ type Props = {
 
 const PageContainer = ({ title, description, children }: Props) => {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null indicates loading
   const [role, setRole] = useState<string>('');
   const [name, setName] = useState<string>('');
 
@@ -78,6 +38,7 @@ const PageContainer = ({ title, description, children }: Props) => {
         setName(response.data.firstName || '');
       } catch (error) {
         console.error('Auth check failed:', error);
+        setIsAuthenticated(false);
         router.push('/');
       }
     };
@@ -102,10 +63,18 @@ const PageContainer = ({ title, description, children }: Props) => {
     return () => {
       api.interceptors.response.eject(interceptor);
     };
-  }, [router]);
+  }, [router, refreshToken]);
+
+  if (isAuthenticated === null) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   if (!isAuthenticated) {
-    return null; // Prevent rendering until auth is checked
+    return null; // Redirect handled in useEffect
   }
 
   return (

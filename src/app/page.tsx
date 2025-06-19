@@ -1,19 +1,19 @@
 "use client";
-import Link from "next/link";
-import { Grid, Box, Card, Stack, Typography, Button } from "@mui/material";
-import PageContainer from "@/app/(DashboardLayout)/components/container/PageContainer";
 
-import Logo from "@/app/(DashboardLayout)/dashboard/layout/shared/logo/Logo";
+import { Grid, Box, Card, Stack, Typography, Button } from "@mui/material";
+
+
+import Logo from "../app/(DashboardLayout)/dashboard/layout/shared/logo/Logo";
 import AuthLogin from "./authentication/auth/AuthLogin";
 
 const Login2 = () => {
   return (
-    // <PageContainer title="Login" description="This is the login page">
+    
       <Box
         sx={{
           position: "relative",
           height: "100vh",
-          backgroundImage: "url('/images/cncap.png')",
+          backgroundImage: "url('/images/SSPS_Logo.png')",
           backgroundSize: "cover",
           backgroundPosition: "center",
           "&:before": {
@@ -115,7 +115,7 @@ const Login2 = () => {
           </Grid>
         </Grid>
       </Box>
-    // </PageContainer>
+    
   );
 };
 

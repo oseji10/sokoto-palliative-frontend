@@ -82,21 +82,21 @@ const Menuitems = [
     id: uniqueId(),
     title: "Product Requests",
     icon: IconPencilDown,
-    href: "/dashboard/requests/requests",
+    href: "#",
   },
 
   {
     id: uniqueId(),
     title: "Stock",
     icon: IconStack3,
-    href: "/dashboard/stock/stock",
+    href: "#",
   },
 
   {
     id: uniqueId(),
     title: "Transactions",
     icon: IconMoneybag,
-    href: "/dashboard/transactions/transactions",
+    href: "#",
   },
 
 
@@ -105,7 +105,7 @@ const Menuitems = [
     id: uniqueId(),
     title: "Reports",
     icon: IconReceiptTax,
-    href: "/dashboard/remittances/remittances",
+    href: "#",
   },
 
  
