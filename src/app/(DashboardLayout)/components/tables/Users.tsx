@@ -29,26 +29,27 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 
 interface User {
-    id: string;
+    id: string; // Corresponds to users.id and staff.userId
     firstName: string;
     lastName: string;
     otherNames?: string;
-    staffId: string;
+    staffId: string; // Corresponds to staff.staffId
     email?: string;
     phoneNumber?: string;
+    password?: string;
     staff?: {
         staffId: number;
         effectiveFrom: string;
-        effectiveUntil: string;
-        userId: number;
+        effectiveUntil: string | null;
+        userId: number; // Links to users.id
         staffType: number;
         lga: number;
-        supervisor: number;
+        supervisor: number | null;
         isActive: string;
         created_at: string | null;
         updated_at: string | null;
         deleted_at: string | null;
-        staff_type: {
+        staff_type?: {
             typeId: number;
             typeName: string;
             duration: string | null;
@@ -58,9 +59,37 @@ interface User {
 }
 
 interface Supervisor {
-    staffId: number;
+    id: number;
     firstName: string;
     lastName: string;
+    otherNames?: string | null;
+    email?: string;
+    phoneNumber?: string;
+    email_verified_at?: string | null;
+    role: number;
+    remember_token?: string | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string | null;
+    staff: {
+        staffId: number;
+        effectiveFrom: string;
+        effectiveUntil?: string | null;
+        userId: number;
+        staffType: number;
+        lga: number;
+        supervisor?: number | null;
+        isActive: string;
+        created_at: string | null;
+        updated_at: string | null;
+        deleted_at?: string | null;
+        staff_type?: {
+            typeId: number;
+            typeName: string;
+            duration?: string | null;
+            deleted_at?: string | null;
+        };
+    };
 }
 
 interface LGA {
@@ -83,6 +112,8 @@ const Users = () => {
     const [recordsPerPage, setRecordsPerPage] = useState(10);
     const [openModal, setOpenModal] = useState(false);
     const [openViewModal, setOpenViewModal] = useState(false);
+    const [openPasswordModal, setOpenPasswordModal] = useState(false);
+    const [generatedPassword, setGeneratedPassword] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [otherNames, setOtherNames] = useState("");
@@ -98,17 +129,42 @@ const Users = () => {
     const [viewingUser, setViewingUser] = useState<User | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
+    const fetchUsers = async () => {
+        try {
+            const usersResponse = await api.get('/users');
+            const sortedData = usersResponse.data.sort((a: User, b: User) => 
+                a.firstName.localeCompare(b.firstName)
+            );
+            setUsers(sortedData);
+            setFilteredUsers(sortedData.filter((user: User) =>
+                (!searchTerm ||
+                    user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    user.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+                ) &&
+                (!lgaFilter || user.staff?.lga === Number(lgaFilter)) &&
+                (!staffTypeFilter || user.staff?.staffType === Number(staffTypeFilter))
+            ));
+        } catch (error: any) {
+            setError(error.response?.data?.message || 'Failed to fetch users');
+            console.error('Fetch users error:', error);
+        }
+    };
+
     useEffect(() => {
         const fetchData = async () => {
+            setIsLoading(true);
             try {
                 const [usersResponse, supervisorsResponse, lgasResponse, staffTypesResponse] = await Promise.all([
                     api.get('/users'),
                     api.get('/supervisors'),
                     api.get('/lgas'),
-                    api.get('/staff-types')
+                    api.get('/staff/types')
                 ]);
                 
                 const sortedData = usersResponse.data.sort((a: User, b: User) => 
@@ -116,11 +172,18 @@ const Users = () => {
                 );
                 setUsers(sortedData);
                 setFilteredUsers(sortedData);
-                setSupervisors(supervisorsResponse.data);
+                const validSupervisors = supervisorsResponse.data.filter(
+                    (sup: Supervisor) => sup && sup.staff && typeof sup.staff.staffId === 'number' && sup.firstName && sup.lastName
+                );
+                setSupervisors(validSupervisors);
+                console.log('Supervisors:', validSupervisors);
                 setLgas(lgasResponse.data);
                 setStaffTypes(staffTypesResponse.data);
             } catch (error: any) {
                 setError(error.response?.data?.message || 'Failed to fetch data');
+                console.error('Fetch error:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
         fetchData();
@@ -164,6 +227,7 @@ const Users = () => {
     };
 
     const handleOpenModal = (user?: User) => {
+        if (isLoading) return;
         if (user) {
             setEditingUser(user);
             setFirstName(user.firstName);
@@ -171,9 +235,13 @@ const Users = () => {
             setOtherNames(user.otherNames || "");
             setEmail(user.email || "");
             setPhoneNumber(user.phoneNumber || "");
-            setSupervisor(user.staff?.supervisor.toString() || "");
-            setLga(user.staff?.lga.toString() || "");
-            setStaffType(user.staff?.staffType.toString() || "");
+            const supervisorId = user.staff?.supervisor && supervisors.some(s => s.staff.staffId === user.staff!.supervisor)
+                ? user.staff.supervisor.toString()
+                : "";
+            setSupervisor(supervisorId);
+            console.log('Setting supervisor:', supervisorId, 'for user:', user.staff?.supervisor);
+            setLga(user.staff?.lga?.toString() || "");
+            setStaffType(user.staff?.staffType?.toString() || "");
         } else {
             setEditingUser(null);
             setFirstName("");
@@ -214,6 +282,22 @@ const Users = () => {
         setViewingUser(null);
     };
 
+    const handleClosePasswordModal = () => {
+        setOpenPasswordModal(false);
+        setGeneratedPassword("");
+    };
+
+    const handleCopyPassword = () => {
+        navigator.clipboard.writeText(generatedPassword)
+            .then(() => {
+                alert("Password copied to clipboard!");
+            })
+            .catch((err) => {
+                console.error('Failed to copy password:', err);
+                setError("Failed to copy password");
+            });
+    };
+
     const handleSubmit = async () => {
         if (!firstName.trim() || !lastName.trim()) {
             setError('First name and last name are required');
@@ -225,16 +309,16 @@ const Users = () => {
         try {
             let newUser: User;
             if (editingUser) {
-                const response = await api.put(`/users/${editingUser.staffId}/edit`, {
+                const response = await api.put(`/staff/${editingUser.staffId}/edit`, {
                     firstName,
                     lastName,
                     otherNames,
                     email,
                     phoneNumber,
                     staff: {
-                        supervisor,
-                        lga,
-                        staffType
+                        supervisor: supervisor === "" ? null : Number(supervisor),
+                        lga: lga === "" ? null : Number(lga),
+                        staffType: staffType === "" ? null : Number(staffType)
                     }
                 });
                 
@@ -243,30 +327,23 @@ const Users = () => {
                     if (!newUser.staffId || !newUser.firstName) {
                         throw new Error('Invalid response format: missing staffId or firstName');
                     }
-                    const updatedUsers = [...users.map(d => 
-                        d.staffId === editingUser.staffId ? newUser : d
-                    )].sort((a, b) => a.firstName.localeCompare(b.firstName));
-                    
-                    setUsers(updatedUsers);
-                    setFilteredUsers([...updatedUsers].filter(d =>
-                        d.firstName.toLowerCase().includes(searchTerm.toLowerCase())
-                    ));
+                    await fetchUsers();
                     setError(null);
                     handleCloseModal();
                 } else {
                     throw new Error(response.data?.message || 'Update failed');
                 }
             } else {
-                const response = await api.post('/users', {
+                const response = await api.post('/staff', {
                     firstName,
                     lastName,
                     otherNames,
                     email,
                     phoneNumber,
                     staff: {
-                        supervisor,
-                        lga,
-                        staffType
+                        supervisor: supervisor === "" ? null : Number(supervisor),
+                        lga: lga === "" ? null : Number(lga),
+                        staffType: staffType === "" ? null : Number(staffType)
                     }
                 });
                 
@@ -275,15 +352,12 @@ const Users = () => {
                     if (!newUser.staffId || !newUser.firstName) {
                         throw new Error('Invalid response format: missing staffId or firstName');
                     }
-                    const updatedUsers = [...users, newUser].sort((a, b) => 
-                        a.firstName.localeCompare(b.firstName)
-                    );
-                    
-                    setUsers(updatedUsers);
-                    setFilteredUsers([...updatedUsers].filter(d => 
-                        d.firstName.toLowerCase().includes(searchTerm.toLowerCase())
-                    ));
+                    await fetchUsers();
                     setError(null);
+                    if (newUser.password) {
+                        setGeneratedPassword(newUser.password);
+                        setOpenPasswordModal(true);
+                    }
                     handleCloseModal();
                 } else {
                     throw new Error(response.data?.message || 'Add failed');
@@ -316,17 +390,10 @@ const Users = () => {
 
         setIsSubmitting(true);
         try {
-            const response = await api.delete(`/users/${userToDelete.staffId}/delete`);
+            const response = await api.delete(`/staff/${userToDelete.id}/delete`);
             
             if (response.status >= 200 && response.status < 300) {
-                const updatedUsers = [...users.filter(d => 
-                    d.staffId !== userToDelete.staffId
-                )].sort((a, b) => a.firstName.localeCompare(b.firstName));
-                
-                setUsers(updatedUsers);
-                setFilteredUsers([...updatedUsers].filter(d => 
-                    d.firstName.toLowerCase().includes(searchTerm.toLowerCase())
-                ));
+                await fetchUsers();
                 setError(null);
                 handleCloseDeleteDialog();
             } else {
@@ -356,6 +423,7 @@ const Users = () => {
                     onClick={() => handleOpenModal()}
                     disableElevation
                     color="primary"
+                    disabled={isLoading}
                 >
                     Add User
                 </Button>
@@ -376,7 +444,9 @@ const Users = () => {
                         >
                             <MenuItem value="">All LGAs</MenuItem>
                             {lgas.map((lga) => (
-                                <MenuItem key={lga.lgaId} value={lga.lgaId.toString()}>{lga.lgaName}</MenuItem>
+                                <MenuItem key={lga.lgaId} value={lga.lgaId.toString()}>
+                                    {lga.lgaName}
+                                </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
@@ -389,7 +459,9 @@ const Users = () => {
                         >
                             <MenuItem value="">All Staff Types</MenuItem>
                             {staffTypes.map((type) => (
-                                <MenuItem key={type.typeId} value={type.typeId.toString()}>{type.typeName}</MenuItem>
+                                <MenuItem key={type.typeId} value={type.typeId.toString()}>
+                                    {type.typeName}
+                                </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
@@ -402,94 +474,102 @@ const Users = () => {
                 </Box>
             )}
 
-            <Box sx={{ overflow: 'auto', width: { xs: '280px', sm: 'auto' } }}>
-                <Table
-                    aria-label="simple table"
-                    sx={{
-                        whiteSpace: "nowrap",
-                        mt: 2
-                    }}
-                >
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Staff Name
-                                </Typography>
-                            </TableCell>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Email
-                                </Typography>
-                            </TableCell>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Phone
-                                </Typography>
-                            </TableCell>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Staff Type
-                                </Typography>
-                            </TableCell>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Actions
-                                </Typography>
-                            </TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {paginatedUsers.map((user) => (
-                            <TableRow key={user.staffId}>
-                                <TableCell>
-                                    <Typography
-                                        sx={{
-                                            fontSize: "15px",
-                                            fontWeight: "500",
-                                        }}
-                                    >
-                                        {user.firstName} {user.lastName} {user.otherNames}
-                                    </Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <Typography>{user.email}</Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <Typography>{user.phoneNumber}</Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <Typography>{user.staff?.staff_type.typeName}</Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <IconButton onClick={() => handleOpenViewModal(user)}>
-                                        <VisibilityIcon />
-                                    </IconButton>
-                                    <IconButton onClick={() => handleOpenModal(user)}>
-                                        <EditIcon />
-                                    </IconButton>
-                                    <IconButton 
-                                        onClick={() => handleOpenDeleteDialog(user)}
-                                        disabled={isSubmitting}
-                                    >
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </Box>
+            {isLoading ? (
+                <Box display="flex" justifyContent="center" my={4}>
+                    <CircularProgress />
+                </Box>
+            ) : (
+                <>
+                    <Box sx={{ overflow: 'auto', width: { xs: '280px', sm: 'auto' } }}>
+                        <Table
+                            aria-label="simple table"
+                            sx={{
+                                whiteSpace: "nowrap",
+                                mt: 2
+                            }}
+                        >
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Staff Name
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Email
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Phone
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Staff Type
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Actions
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {paginatedUsers.map((user) => (
+                                    <TableRow key={user.id}>
+                                        <TableCell>
+                                            <Typography
+                                                sx={{
+                                                    fontSize: "15px",
+                                                    fontWeight: "500",
+                                                }}
+                                            >
+                                                {user.firstName} {user.lastName} {user.otherNames}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography>{user.email}</Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography>{user.phoneNumber}</Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography>{user.staff?.staff_type?.typeName}</Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <IconButton onClick={() => handleOpenViewModal(user)}>
+                                                <VisibilityIcon />
+                                            </IconButton>
+                                            <IconButton onClick={() => handleOpenModal(user)}>
+                                                <EditIcon />
+                                            </IconButton>
+                                            <IconButton 
+                                                onClick={() => handleOpenDeleteDialog(user)}
+                                                disabled={isSubmitting}
+                                            >
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Box>
 
-            <TablePagination
-                component="div"
-                count={filteredUsers.length}
-                page={currentPage}
-                onPageChange={handleChangePage}
-                rowsPerPage={recordsPerPage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[5, 10, 25]}
-            />
+                    <TablePagination
+                        component="div"
+                        count={filteredUsers.length}
+                        page={currentPage}
+                        onPageChange={handleChangePage}
+                        rowsPerPage={recordsPerPage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        rowsPerPageOptions={[5, 10, 25]}
+                    />
+                </>
+            )}
 
             <Modal
                 open={openModal}
@@ -565,16 +645,27 @@ const Users = () => {
                         <FormControl fullWidth>
                             <InputLabel>Supervisor</InputLabel>
                             <Select
+                                key={supervisor}
                                 value={supervisor}
-                                onChange={(e) => setSupervisor(e.target.value)}
+                                onChange={(e) => {
+                                    console.log('Selected supervisor:', e.target.value);
+                                    setSupervisor(e.target.value);
+                                }}
                                 label="Supervisor"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || supervisors.length === 0}
                             >
                                 <MenuItem value="">Select Supervisor</MenuItem>
                                 {supervisors.map((sup) => (
-                                    <MenuItem key={sup.staffId} value={sup.staffId}>{sup.firstName} {sup.lastName}</MenuItem>
+                                    <MenuItem key={sup.staff.staffId} value={sup.staff.staffId.toString()}>
+                                        {sup.firstName} {sup.lastName}
+                                    </MenuItem>
                                 ))}
                             </Select>
+                            {supervisors.length === 0 && (
+                                <Typography color="error" variant="caption">
+                                    No supervisors available
+                                </Typography>
+                            )}
                         </FormControl>
                         <FormControl fullWidth>
                             <InputLabel>LGA</InputLabel>
@@ -586,7 +677,9 @@ const Users = () => {
                             >
                                 <MenuItem value="">Select LGA</MenuItem>
                                 {lgas.map((lga) => (
-                                    <MenuItem key={lga.lgaId} value={lga.lgaId.toString()}>{lga.lgaName}</MenuItem>
+                                    <MenuItem key={lga.lgaId} value={lga.lgaId.toString()}>
+                                        {lga.lgaName}
+                                    </MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
@@ -600,7 +693,9 @@ const Users = () => {
                             >
                                 <MenuItem value="">Select Staff Type</MenuItem>
                                 {staffTypes.map((type) => (
-                                    <MenuItem key={type.typeId} value={type.typeId.toString()}>{type.typeName}</MenuItem>
+                                    <MenuItem key={type.typeId} value={type.typeId.toString()}>
+                                        {type.typeName}
+                                    </MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
@@ -659,11 +754,66 @@ const Users = () => {
                     <Typography><strong>Name:</strong> {viewingUser?.firstName} {viewingUser?.lastName} {viewingUser?.otherNames}</Typography>
                     <Typography><strong>Email:</strong> {viewingUser?.email}</Typography>
                     <Typography><strong>Phone:</strong> {viewingUser?.phoneNumber}</Typography>
-                    <Typography><strong>Staff Type:</strong> {viewingUser?.staff?.staff_type.typeName}</Typography>
+                    <Typography><strong>Staff Type:</strong> {viewingUser?.staff?.staff_type?.typeName}</Typography>
                     <Typography><strong>LGA:</strong> {lgas.find(l => l.lgaId === viewingUser?.staff?.lga)?.lgaName}</Typography>
-                    <Typography><strong>Supervisor:</strong> {supervisors.find(s => s.staffId === viewingUser?.staff?.supervisor)?.firstName} {supervisors.find(s => s.staffId === viewingUser?.staff?.supervisor)?.lastName}</Typography>
+                    <Typography><strong>Supervisor:</strong> {supervisors.find(s => s.staff.staffId === viewingUser?.staff?.supervisor)?.firstName} {supervisors.find(s => s.staff.staffId === viewingUser?.staff?.supervisor)?.lastName}</Typography>
                     <Box display="flex" justifyContent="flex-end" mt={2}>
                         <Button onClick={handleCloseViewModal} color="secondary" variant="outlined">
+                            Close
+                        </Button>
+                    </Box>
+                </Box>
+            </Modal>
+
+            <Modal
+                open={openPasswordModal}
+                onClose={handleClosePasswordModal}
+                aria-labelledby="password-modal-title"
+                aria-describedby="password-modal-description"
+            >
+                <Box sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: { xs: '90%', sm: 400 },
+                    maxWidth: '95%',
+                    bgcolor: 'background.paper',
+                    boxShadow: 24,
+                    p: { xs: 2, sm: 4 },
+                    borderRadius: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                }}>
+                    <Typography id="password-modal-title" variant="h6" component="h2" fontWeight={600}>
+                        Generated Password
+                    </Typography>
+                    <Typography id="password-modal-description">
+                        The user has been created successfully. Below is the generated password:
+                    </Typography>
+                    <TextField
+                        fullWidth
+                        label="Password"
+                        value={generatedPassword}
+                        InputProps={{
+                            readOnly: true,
+                        }}
+                        variant="outlined"
+                    />
+                    <Box display="flex" justifyContent="flex-end" gap={1}>
+                        <Button
+                            onClick={handleCopyPassword}
+                            variant="contained"
+                            color="primary"
+                        >
+                            Copy Password
+                        </Button>
+                        <Button
+                            onClick={handleClosePasswordModal}
+                            color="secondary"
+                            variant="outlined"
+                        >
                             Close
                         </Button>
                     </Box>

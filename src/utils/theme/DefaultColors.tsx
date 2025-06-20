@@ -12,12 +12,12 @@ const baselightTheme = createTheme({
   direction: "ltr",
   palette: {
     primary: {
-      main: "#5D87FF",
+      main: "#154c32",
       light: "#ECF2FF",
-      dark: "#4570EA",
+      dark: "#7db63b",
     },
     secondary: {
-      main: "#49BEFF",
+      main: "#7db63b",
       light: "#E8F7FF",
       dark: "#23afdb",
     },

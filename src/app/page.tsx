@@ -13,7 +13,7 @@ const Login2 = () => {
         sx={{
           position: "relative",
           height: "100vh",
-          backgroundImage: "url('/images/SSPS_Logo.png')",
+          backgroundImage: "url('/images/cncap.png')",
           backgroundSize: "cover",
           backgroundPosition: "center",
           "&:before": {
@@ -79,14 +79,14 @@ const Login2 = () => {
               >
                 Welcome Back!
               </Typography>
-              <Typography
+              {/* <Typography
                 variant="subtitle1"
                 textAlign="center"
                 color="textSecondary"
                 sx={{ mb: 3 }}
               >
                 Sign in to continue your journey
-              </Typography>
+              </Typography> */}
               <AuthLogin
                 subtext={
                   <Typography

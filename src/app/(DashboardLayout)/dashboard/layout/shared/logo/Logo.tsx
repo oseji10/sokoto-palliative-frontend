@@ -13,7 +13,7 @@ const OurLogo = () => {
   return (
     <LinkStyled href="/">
       <Image 
-        src="/images/logos/sokoto-palliative.svg" 
+        src="/images/logos/sokoto-palliative1.svg" 
         alt="logo" 
         width={250} 
         height={100} 

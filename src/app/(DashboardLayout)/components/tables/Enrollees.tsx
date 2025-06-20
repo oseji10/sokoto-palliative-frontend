@@ -28,16 +28,16 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 
-interface Enrollee {
-    enrolleeId: string;
+interface Beneficiary {
+    beneficiaryId: string;
     firstName: string;
     lastName: string;
     otherNames?: string;
     phoneNumber?: string;
     email?: string;
-    enrolleeType: number;
+    beneficiaryType: number;
     lga: number;
-    enrollee_type?: {
+    beneficiary_type?: {
         typeId: number;
         typeName: string;
     };
@@ -47,7 +47,7 @@ interface Enrollee {
     };
 }
 
-interface EnrolleeType {
+interface BeneficiaryType {
     typeId: number;
     typeName: string;
 }
@@ -57,11 +57,11 @@ interface LGA {
     lgaName: string;
 }
 
-const Enrollees = () => {
-    const [enrollees, setEnrollees] = useState<Enrollee[]>([]);
-    const [filteredEnrollees, setFilteredEnrollees] = useState<Enrollee[]>([]);
+const Beneficiaries = () => {
+    const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
+    const [filteredBeneficiaries, setFilteredBeneficiaries] = useState<Beneficiary[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
-    const [enrolleeTypeFilter, setEnrolleeTypeFilter] = useState("");
+    const [beneficiaryTypeFilter, setBeneficiaryTypeFilter] = useState("");
     const [lgaFilter, setLgaFilter] = useState("");
     const [currentPage, setCurrentPage] = useState(0);
     const [recordsPerPage, setRecordsPerPage] = useState(10);
@@ -72,31 +72,31 @@ const Enrollees = () => {
     const [otherNames, setOtherNames] = useState("");
     const [email, setEmail] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
-    const [enrolleeType, setEnrolleeType] = useState("");
+    const [beneficiaryType, setBeneficiaryType] = useState("");
     const [lga, setLga] = useState("");
-    const [enrolleeTypes, setEnrolleeTypes] = useState<EnrolleeType[]>([]);
+    const [beneficiaryTypes, setBeneficiaryTypes] = useState<BeneficiaryType[]>([]);
     const [lgas, setLgas] = useState<LGA[]>([]);
-    const [editingEnrollee, setEditingEnrollee] = useState<Enrollee | null>(null);
-    const [viewingEnrollee, setViewingEnrollee] = useState<Enrollee | null>(null);
+    const [editingBeneficiary, setEditingBeneficiary] = useState<Beneficiary | null>(null);
+    const [viewingBeneficiary, setViewingBeneficiary] = useState<Beneficiary | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [enrolleeToDelete, setEnrolleeToDelete] = useState<Enrollee | null>(null);
+    const [beneficiaryToDelete, setBeneficiaryToDelete] = useState<Beneficiary | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [enrolleesResponse, enrolleeTypesResponse, lgasResponse] = await Promise.all([
-                    api.get('/enrollees'),
-                    api.get('/enrollees/types'),
+                const [beneficiariesResponse, beneficiaryTypesResponse, lgasResponse] = await Promise.all([
+                    api.get('/beneficiaries'),
+                    api.get('/beneficiaries/types'),
                     api.get('/lgas'),
                 ]);
-                const sortedData = enrolleesResponse.data.sort((a: Enrollee, b: Enrollee) => 
+                const sortedData = beneficiariesResponse.data.sort((a: Beneficiary, b: Beneficiary) => 
                     a.firstName.localeCompare(b.firstName)
                 );
-                setEnrollees(sortedData);
-                setFilteredEnrollees(sortedData);
-                setEnrolleeTypes(enrolleeTypesResponse.data);
+                setBeneficiaries(sortedData);
+                setFilteredBeneficiaries(sortedData);
+                setBeneficiaryTypes(beneficiaryTypesResponse.data);
                 setLgas(lgasResponse.data);
             } catch (error: any) {
                 setError(error.response?.data?.message || 'Failed to fetch data');
@@ -106,28 +106,28 @@ const Enrollees = () => {
     }, []);
 
     useEffect(() => {
-        let filtered = [...enrollees];
+        let filtered = [...beneficiaries];
         if (searchTerm) {
-            filtered = filtered.filter((enrollee) =>
-                enrollee.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                enrollee.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                enrollee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                enrollee.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+            filtered = filtered.filter((beneficiary) =>
+                beneficiary.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                beneficiary.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                beneficiary.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                beneficiary.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
-        if (enrolleeTypeFilter) {
-            filtered = filtered.filter((enrollee) => 
-                enrollee.enrolleeType === Number(enrolleeTypeFilter)
+        if (beneficiaryTypeFilter) {
+            filtered = filtered.filter((beneficiary) => 
+                beneficiary.beneficiaryType === Number(beneficiaryTypeFilter)
             );
         }
         if (lgaFilter) {
-            filtered = filtered.filter((enrollee) => 
-                enrollee.lga === Number(lgaFilter)
+            filtered = filtered.filter((beneficiary) => 
+                beneficiary.lga === Number(lgaFilter)
             );
         }
-        setFilteredEnrollees(filtered);
+        setFilteredBeneficiaries(filtered);
         setCurrentPage(0);
-    }, [searchTerm, enrolleeTypeFilter, lgaFilter, enrollees]);
+    }, [searchTerm, beneficiaryTypeFilter, lgaFilter, beneficiaries]);
 
     const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(event.target.value);
@@ -142,32 +142,32 @@ const Enrollees = () => {
         setCurrentPage(0);
     };
 
-    const handleOpenModal = (enrollee?: Enrollee) => {
-        if (enrollee) {
-            setEditingEnrollee(enrollee);
-            setFirstName(enrollee.firstName);
-            setLastName(enrollee.lastName);
-            setOtherNames(enrollee.otherNames || "");
-            setEmail(enrollee.email || "");
-            setPhoneNumber(enrollee.phoneNumber || "");
-            setEnrolleeType(enrollee.enrolleeType.toString());
-            setLga(enrollee.lga.toString());
+    const handleOpenModal = (beneficiary?: Beneficiary) => {
+        if (beneficiary) {
+            setEditingBeneficiary(beneficiary);
+            setFirstName(beneficiary.firstName);
+            setLastName(beneficiary.lastName);
+            setOtherNames(beneficiary.otherNames || "");
+            setEmail(beneficiary.email || "");
+            setPhoneNumber(beneficiary.phoneNumber || "");
+            setBeneficiaryType(beneficiary.beneficiaryType.toString());
+            setLga(beneficiary.lga.toString());
         } else {
-            setEditingEnrollee(null);
+            setEditingBeneficiary(null);
             setFirstName("");
             setLastName("");
             setOtherNames("");
             setEmail("");
             setPhoneNumber("");
-            setEnrolleeType("");
+            setBeneficiaryType("");
             setLga("");
         }
         setError(null);
         setOpenModal(true);
     };
 
-    const handleOpenViewModal = (enrollee: Enrollee) => {
-        setViewingEnrollee(enrollee);
+    const handleOpenViewModal = (beneficiary: Beneficiary) => {
+        setViewingBeneficiary(beneficiary);
         setOpenViewModal(true);
     };
 
@@ -178,51 +178,51 @@ const Enrollees = () => {
         setOtherNames("");
         setEmail("");
         setPhoneNumber("");
-        setEnrolleeType("");
+        setBeneficiaryType("");
         setLga("");
-        setEditingEnrollee(null);
+        setEditingBeneficiary(null);
         setError(null);
         setIsSubmitting(false);
     };
 
     const handleCloseViewModal = () => {
         setOpenViewModal(false);
-        setViewingEnrollee(null);
+        setViewingBeneficiary(null);
     };
 
     const handleSubmit = async () => {
-        if (!firstName.trim() || !lastName.trim() || !enrolleeType ) {
-            setError('First name, last name, enrollee type, and LGA are required');
+        if (!firstName.trim() || !lastName.trim() || !beneficiaryType ) {
+            setError('First name, last name, beneficiary type, and LGA are required');
             setIsSubmitting(false);
             return;
         }
 
         setIsSubmitting(true);
         try {
-            let newEnrollee: Enrollee;
+            let newBeneficiary: Beneficiary;
             const payload = {
                 firstName,
                 lastName,
                 otherNames,
                 email,
                 phoneNumber,
-                enrolleeType: Number(enrolleeType),
+                beneficiaryType: Number(beneficiaryType),
                 // lga: Number(lga),
             };
-            if (editingEnrollee) {
-                const response = await api.put(`/enrollees/${editingEnrollee.id}/edit`, payload);
+            if (editingBeneficiary) {
+                const response = await api.put(`/beneficiaries/${editingBeneficiary.id}/edit`, payload);
                 if (response.status >= 200 && response.status < 300) {
-                    newEnrollee = response.data;
-                    if (!newEnrollee.id || !newEnrollee.firstName) {
+                    newBeneficiary = response.data;
+                    if (!newBeneficiary.beneficiaryId || !newBeneficiary.firstName) {
                         throw new Error('Invalid response format: missing id or firstName');
                     }
-                    const updatedEnrollees = [...enrollees.map(d => 
-                        d.id === editingEnrollee.id ? newEnrollee : d
+                    const updatedBeneficiaries = [...beneficiaries.map(d => 
+                        d.beneficiaryId === editingBeneficiary.beneficiaryId ? newBeneficiary : d
                     )].sort((a, b) => a.firstName.localeCompare(b.firstName));
-                    setEnrollees(updatedEnrollees);
-                    setFilteredEnrollees([...updatedEnrollees].filter(d =>
+                    setBeneficiaries(updatedBeneficiaries);
+                    setFilteredBeneficiaries([...updatedBeneficiaries].filter(d =>
                         d.firstName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-                        (!enrolleeTypeFilter || d.enrolleeType === Number(enrolleeTypeFilter)) &&
+                        (!beneficiaryTypeFilter || d.beneficiaryType === Number(beneficiaryTypeFilter)) &&
                         (!lgaFilter || d.lga === Number(lgaFilter))
                     ));
                     setError(null);
@@ -231,19 +231,19 @@ const Enrollees = () => {
                     throw new Error(response.data?.message || 'Update failed');
                 }
             } else {
-                const response = await api.post('/enrollees', payload);
+                const response = await api.post('/beneficiaries', payload);
                 if (response.status >= 200 && response.status < 300) {
-                    newEnrollee = response.data;
-                    if (!newEnrollee.enrolleeId || !newEnrollee.firstName) {
+                    newBeneficiary = response.data;
+                    if (!newBeneficiary.beneficiaryId || !newBeneficiary.firstName) {
                         throw new Error('Invalid response format: missing id or firstName');
                     }
-                    const updatedEnrollees = [...enrollees, newEnrollee].sort((a, b) => 
+                    const updatedBeneficiaries = [...beneficiaries, newBeneficiary].sort((a, b) => 
                         a.firstName.localeCompare(b.firstName)
                     );
-                    setEnrollees(updatedEnrollees);
-                    setFilteredEnrollees([...updatedEnrollees].filter(d => 
+                    setBeneficiaries(updatedBeneficiaries);
+                    setFilteredBeneficiaries([...updatedBeneficiaries].filter(d => 
                         d.firstName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-                        (!enrolleeTypeFilter || d.enrolleeType === Number(enrolleeTypeFilter)) &&
+                        (!beneficiaryTypeFilter || d.beneficiaryType === Number(beneficiaryTypeFilter)) &&
                         (!lgaFilter || d.lga === Number(lgaFilter))
                     ));
                     setError(null);
@@ -256,38 +256,38 @@ const Enrollees = () => {
             setError(
                 error.response?.data?.message || 
                 error.message || 
-                (editingEnrollee ? 'Failed to update enrollee' : 'Failed to add enrollee')
+                (editingBeneficiary ? 'Failed to update beneficiary' : 'Failed to add beneficiary')
             );
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleOpenDeleteDialog = (enrollee: Enrollee) => {
-        setEnrolleeToDelete(enrollee);
+    const handleOpenDeleteDialog = (beneficiary: Beneficiary) => {
+        setBeneficiaryToDelete(beneficiary);
         setDeleteDialogOpen(true);
     };
 
     const handleCloseDeleteDialog = () => {
         setDeleteDialogOpen(false);
-        setEnrolleeToDelete(null);
+        setBeneficiaryToDelete(null);
         setError(null);
     };
 
     const handleDelete = async () => {
-        if (!enrolleeToDelete) return;
+        if (!beneficiaryToDelete) return;
 
         setIsSubmitting(true);
         try {
-            const response = await api.delete(`/enrollees/${enrolleeToDelete.id}/delete`);
+            const response = await api.delete(`/beneficiaries/${beneficiaryToDelete.id}/delete`);
             if (response.status >= 200 && response.status < 300) {
-                const updatedEnrollees = [...enrollees.filter(d => 
-                    d.id !== enrolleeToDelete.id
+                const updatedBeneficiaries = [...beneficiaries.filter(d => 
+                    d.id !== beneficiaryToDelete.id
                 )].sort((a, b) => a.firstName.localeCompare(b.firstName));
-                setEnrollees(updatedEnrollees);
-                setFilteredEnrollees([...updatedEnrollees].filter(d => 
+                setBeneficiaries(updatedBeneficiaries);
+                setFilteredBeneficiaries([...updatedBeneficiaries].filter(d => 
                     d.firstName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-                    (!enrolleeTypeFilter || d.enrolleeType === Number(enrolleeTypeFilter)) &&
+                    (!beneficiaryTypeFilter || d.beneficiaryType === Number(beneficiaryTypeFilter)) &&
                     (!lgaFilter || d.lga === Number(lgaFilter))
                 ));
                 setError(null);
@@ -299,20 +299,20 @@ const Enrollees = () => {
             setError(
                 error.response?.data?.message || 
                 error.message || 
-                'Failed to delete enrollee'
+                'Failed to delete beneficiary'
             );
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const paginatedEnrollees = filteredEnrollees.slice(
+    const paginatedBeneficiaries = filteredBeneficiaries.slice(
         currentPage * recordsPerPage,
         currentPage * recordsPerPage + recordsPerPage
     );
 
     return (
-        <DashboardCard title="List of Enrollees">
+        <DashboardCard title="List of Beneficiaries">
             <Box display="flex" justifyContent="space-between" mb={2} gap={2} flexWrap="wrap">
                 <Button
                     variant="contained"
@@ -320,7 +320,7 @@ const Enrollees = () => {
                     disableElevation
                     color="primary"
                 >
-                    Add Enrollee
+                    Add Beneficiary
                 </Button>
                 <Box display="flex" gap={2} flexWrap="wrap">
                     <TextField
@@ -331,14 +331,14 @@ const Enrollees = () => {
                         sx={{ width: { xs: '100%', sm: 300 } }}
                     />
                     <FormControl sx={{ minWidth: { xs: '100%', sm: 150 } }}>
-                        <InputLabel>Enrollee Type Filter</InputLabel>
+                        <InputLabel>Beneficiary Type Filter</InputLabel>
                         <Select
-                            value={enrolleeTypeFilter}
-                            onChange={(e) => setEnrolleeTypeFilter(e.target.value)}
-                            label="Enrollee Type Filter"
+                            value={beneficiaryTypeFilter}
+                            onChange={(e) => setBeneficiaryTypeFilter(e.target.value)}
+                            label="Beneficiary Type Filter"
                         >
-                            <MenuItem value="">All Enrollee Types</MenuItem>
-                            {enrolleeTypes.map((type) => (
+                            <MenuItem value="">All Beneficiary Types</MenuItem>
+                            {beneficiaryTypes.map((type) => (
                                 <MenuItem key={type.typeId} value={type.typeId.toString()}>{type.typeName}</MenuItem>
                             ))}
                         </Select>
@@ -392,7 +392,7 @@ const Enrollees = () => {
                             </TableCell>
                             <TableCell>
                                 <Typography variant="subtitle2" fontWeight={600}>
-                                    Enrollee Type
+                                    Beneficiary Type
                                 </Typography>
                             </TableCell>
                             <TableCell>
@@ -408,8 +408,8 @@ const Enrollees = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {paginatedEnrollees.map((enrollee) => (
-                            <TableRow key={enrollee.id}>
+                        {paginatedBeneficiaries.map((beneficiary) => (
+                            <TableRow key={beneficiary.id}>
                                 <TableCell>
                                     <Typography
                                         sx={{
@@ -417,30 +417,30 @@ const Enrollees = () => {
                                             fontWeight: "500",
                                         }}
                                     >
-                                        {enrollee.firstName} {enrollee.lastName} {enrollee.otherNames}
+                                        {beneficiary.firstName} {beneficiary.lastName} {beneficiary.otherNames}
                                     </Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <Typography>{enrollee.email || 'N/A'}</Typography>
+                                    <Typography>{beneficiary.email || 'N/A'}</Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <Typography>{enrollee.phoneNumber || 'N/A'}</Typography>
+                                    <Typography>{beneficiary.phoneNumber || 'N/A'}</Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <Typography>{enrollee.enrollee_type?.typeName || 'Unknown'}</Typography>
+                                    <Typography>{beneficiary.beneficiary_type?.typeName || 'Unknown'}</Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <Typography>{enrollee.lga_info?.lgaName || 'Unknown'}</Typography>
+                                    <Typography>{beneficiary.lga_info?.lgaName || 'Unknown'}</Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <IconButton onClick={() => handleOpenViewModal(enrollee)}>
+                                    <IconButton onClick={() => handleOpenViewModal(beneficiary)}>
                                         <VisibilityIcon />
                                     </IconButton>
-                                    <IconButton onClick={() => handleOpenModal(enrollee)}>
+                                    <IconButton onClick={() => handleOpenModal(beneficiary)}>
                                         <EditIcon />
                                     </IconButton>
                                     <IconButton 
-                                        onClick={() => handleOpenDeleteDialog(enrollee)}
+                                        onClick={() => handleOpenDeleteDialog(beneficiary)}
                                         disabled={isSubmitting}
                                     >
                                         <DeleteIcon />
@@ -454,7 +454,7 @@ const Enrollees = () => {
 
             <TablePagination
                 component="div"
-                count={filteredEnrollees.length}
+                count={filteredBeneficiaries.length}
                 page={currentPage}
                 onPageChange={handleChangePage}
                 rowsPerPage={recordsPerPage}
@@ -486,7 +486,7 @@ const Enrollees = () => {
                     gap: 2,
                 }}>
                     <Typography id="modal-modal-title" variant="h6" component="h2" fontWeight={600}>
-                        {editingEnrollee ? 'Edit Enrollee' : 'Add New Enrollee'}
+                        {editingBeneficiary ? 'Edit Beneficiary' : 'Add New Beneficiary'}
                     </Typography>
                     <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <TextField
@@ -534,16 +534,16 @@ const Enrollees = () => {
                             type="tel"
                         />
                         <FormControl fullWidth>
-                            <InputLabel>Enrollee Type</InputLabel>
+                            <InputLabel>Beneficiary Type</InputLabel>
                             <Select
-                                value={enrolleeType}
-                                onChange={(e) => setEnrolleeType(e.target.value)}
-                                label="Enrollee Type"
+                                value={beneficiaryType}
+                                onChange={(e) => setBeneficiaryType(e.target.value)}
+                                label="Beneficiary Type"
                                 disabled={isSubmitting}
                                 error={!!error}
                             >
-                                <MenuItem value="">Select Enrollee Type</MenuItem>
-                                {enrolleeTypes.map((type) => (
+                                <MenuItem value="">Select Beneficiary Type</MenuItem>
+                                {beneficiaryTypes.map((type) => (
                                     <MenuItem key={type.typeId} value={type.typeId.toString()}>{type.typeName}</MenuItem>
                                 ))}
                             </Select>
@@ -581,10 +581,10 @@ const Enrollees = () => {
                                 onClick={handleSubmit} 
                                 variant="contained" 
                                 color="primary"
-                                disabled={isSubmitting || !firstName.trim() || !lastName.trim() || !enrolleeType }
+                                disabled={isSubmitting || !firstName.trim() || !lastName.trim() || !beneficiaryType }
                                 startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
                             >
-                                {isSubmitting ? (editingEnrollee ? 'Updating...' : 'Adding...') : (editingEnrollee ? 'Update' : 'Add')}
+                                {isSubmitting ? (editingBeneficiary ? 'Updating...' : 'Adding...') : (editingBeneficiary ? 'Update' : 'Add')}
                             </Button>
                         </Box>
                     </Box>
@@ -613,13 +613,13 @@ const Enrollees = () => {
                     gap: 2,
                 }}>
                     <Typography id="view-modal-title" variant="h6" component="h2" fontWeight={600}>
-                        Enrollee Details
+                        Beneficiary Details
                     </Typography>
-                    <Typography><strong>Name:</strong> {viewingEnrollee?.firstName} {viewingEnrollee?.lastName} {viewingEnrollee?.otherNames || ''}</Typography>
-                    <Typography><strong>Email:</strong> {viewingEnrollee?.email || 'N/A'}</Typography>
-                    <Typography><strong>Phone:</strong> {viewingEnrollee?.phoneNumber || 'N/A'}</Typography>
-                    <Typography><strong>Enrollee Type:</strong> {viewingEnrollee?.enrollee_type?.typeName || 'Unknown'}</Typography>
-                    <Typography><strong>LGA:</strong> {viewingEnrollee?.lga_info?.lgaName || 'Unknown'}</Typography>
+                    <Typography><strong>Name:</strong> {viewingBeneficiary?.firstName} {viewingBeneficiary?.lastName} {viewingBeneficiary?.otherNames || ''}</Typography>
+                    <Typography><strong>Email:</strong> {viewingBeneficiary?.email || 'N/A'}</Typography>
+                    <Typography><strong>Phone:</strong> {viewingBeneficiary?.phoneNumber || 'N/A'}</Typography>
+                    <Typography><strong>Beneficiary Type:</strong> {viewingBeneficiary?.beneficiary_type?.typeName || 'Unknown'}</Typography>
+                    <Typography><strong>LGA:</strong> {viewingBeneficiary?.lga_info?.lgaName || 'Unknown'}</Typography>
                     <Box display="flex" justifyContent="flex-end" mt={2}>
                         <Button onClick={handleCloseViewModal} color="secondary" variant="outlined">
                             Close
@@ -639,7 +639,7 @@ const Enrollees = () => {
                 </DialogTitle>
                 <DialogContent>
                     <DialogContentText id="alert-dialog-description">
-                        Are you sure you want to delete the enrollee "{enrolleeToDelete?.firstName} {enrolleeToDelete?.lastName}"? This action cannot be undone.
+                        Are you sure you want to delete the beneficiary "{beneficiaryToDelete?.firstName} {beneficiaryToDelete?.lastName}"? This action cannot be undone.
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
@@ -661,4 +661,4 @@ const Enrollees = () => {
     );
 };
 
-export default Enrollees;
+export default Beneficiaries;

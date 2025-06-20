@@ -19,10 +19,10 @@ import {
 import { uniqueId } from "lodash";
 
 const Menuitems = [
-  {
-    navlabel: true,
-    subheader: "Home",
-  },
+  // {
+  //   navlabel: true,
+  //   subheader: "Home",
+  // },
 
   {
     id: uniqueId(),
@@ -30,10 +30,10 @@ const Menuitems = [
     icon: IconLayoutDashboard,
     href: "/dashboard/",
   },
-  {
-    navlabel: true,
-    subheader: "Utilities",
-  },
+  // {
+  //   navlabel: true,
+  //   subheader: "Utilities",
+  // },
 
   {
     id: uniqueId(),
@@ -44,7 +44,7 @@ const Menuitems = [
 
   {
     id: uniqueId(),
-    title: "Enrollees",
+    title: "Beneficiaries",
     icon: IconMedicalCross,
     href: "/dashboard/enrollees/enrollees",
   },
