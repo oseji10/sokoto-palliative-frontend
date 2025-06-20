@@ -60,7 +60,7 @@ const Header = ({toggleMobileSidebar}: ItemType) => {
           </Badge> */}
 
         </IconButton>
-          <h2>Sokoto State Palliative Shop</h2>
+          <h2>Logged In Location: </h2>
         <Box flexGrow={1} />
         <Stack spacing={1} direction="row" alignItems="center">
           {/* <Button variant="contained" component={Link} href="/authentication/login"   disableElevation color="primary" >

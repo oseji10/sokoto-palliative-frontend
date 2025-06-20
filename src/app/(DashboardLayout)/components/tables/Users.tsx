@@ -173,7 +173,7 @@ const Users = () => {
                 setUsers(sortedData);
                 setFilteredUsers(sortedData);
                 const validSupervisors = supervisorsResponse.data.filter(
-                    (sup: Supervisor) => sup && sup.staff && typeof sup.staff.staffId === 'number' && sup.firstName && sup.lastName
+                    (sup: Supervisor) => sup && typeof sup.id === 'number' && sup.firstName && sup.lastName
                 );
                 setSupervisors(validSupervisors);
                 console.log('Supervisors:', validSupervisors);
@@ -656,7 +656,7 @@ const Users = () => {
                             >
                                 <MenuItem value="">Select Supervisor</MenuItem>
                                 {supervisors.map((sup) => (
-                                    <MenuItem key={sup.staff.staffId} value={sup.staff.staffId.toString()}>
+                                    <MenuItem key={sup.id} value={sup.id.toString()}>
                                         {sup.firstName} {sup.lastName}
                                     </MenuItem>
                                 ))}

@@ -9,7 +9,7 @@ import Products from '@/app/(DashboardLayout)/components/tables/Products';
 
 const SamplePage = () => {
   return (
-    <PageContainer title="Hospitals" description="List of all hospitals">
+    <PageContainer title="Products" description="List of all products">
       <DashboardCard >
         {/* <Typography>All Nominees</Typography> */}
         {/* <NomineesTable/> */}

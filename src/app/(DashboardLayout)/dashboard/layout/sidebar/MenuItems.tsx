@@ -46,7 +46,7 @@ const Menuitems = [
     id: uniqueId(),
     title: "Beneficiaries",
     icon: IconMedicalCross,
-    href: "/dashboard/enrollees/enrollees",
+    href: "/dashboard/beneficiaries/beneficiaries",
   },
 
 
@@ -67,6 +67,19 @@ const Menuitems = [
 
 
 
+  {
+    id: uniqueId(),
+    title: "Ministries",
+    icon: IconLogin,
+    href: "/dashboard/ministries/ministries",
+  },
+
+   {
+    id: uniqueId(),
+    title: "Cadres",
+    icon: IconTypography,
+    href: "/dashboard/cadres/cadres",
+  },
 
 
   {
@@ -113,12 +126,6 @@ const Menuitems = [
   // {
   //   navlabel: true,
   //   subheader: "Auth",
-  // },
-  // {
-  //   id: uniqueId(),
-  //   title: "Login",
-  //   icon: IconLogin,
-  //   href: "/dashboard/authentication/login",
   // },
   // {
   //   id: uniqueId(),

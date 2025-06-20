@@ -33,7 +33,8 @@ interface Product {
     productType: number;
     cost: number;
     status: string;
-    product_type: {
+    imageUrl?: string;
+    product_type?: {
         typeId: number;
         typeName: string;
     };
@@ -55,25 +56,28 @@ const Products = () => {
     const [productName, setProductName] = useState("");
     const [productType, setProductType] = useState("");
     const [cost, setCost] = useState("");
+    const [imageFile, setImageFile] = useState<File | null>(null);
     const [productTypes, setProductTypes] = useState<ProductType[]>([]);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
+            setIsLoading(true);
             try {
                 const [productsResponse, productTypesResponse] = await Promise.all([
                     api.get('/products'),
-                    api.get('/products/types'), // Adjust to '/products/types' if that's the correct endpoint
+                    api.get('/products/types'),
                 ]);
-                // Normalize cost to number
                 const normalizedProducts = productsResponse.data.map((product: any) => ({
                     ...product,
-                    cost: Number(product.cost), // Convert cost to number
-                    productType: Number(product.productType), // Ensure productType is a number
+                    cost: Number(product.cost),
+                    productType: Number(product.productType),
+                    imageUrl: product.imageUrl || null,
                 }));
                 const sortedData = normalizedProducts.sort((a: Product, b: Product) => {
                     const nameCompare = a.productName.localeCompare(b.productName);
@@ -85,6 +89,9 @@ const Products = () => {
                 setProductTypes(productTypesResponse.data);
             } catch (error: any) {
                 setError(error.response?.data?.message || 'Failed to fetch data');
+                console.error('Fetch error:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
         fetchData();
@@ -93,13 +100,13 @@ const Products = () => {
     useEffect(() => {
         let filtered = [...products];
         if (searchTerm) {
-            filtered = filtered.filter((product) =>
-                product.productName.toLowerCase().includes(searchTerm.toLowerCase())
+            filtered = filtered.filter((p) =>
+                p.productName.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
         if (productTypeFilter) {
-            filtered = filtered.filter((product) => 
-                product.productType === Number(productTypeFilter)
+            filtered = filtered.filter((p) => 
+                p.productType === Number(productTypeFilter)
             );
         }
         setFilteredProducts(filtered);
@@ -125,11 +132,13 @@ const Products = () => {
             setProductName(product.productName);
             setProductType(product.productType.toString());
             setCost(product.cost.toString());
+            setImageFile(null);
         } else {
             setEditingProduct(null);
             setProductName("");
             setProductType("");
             setCost("");
+            setImageFile(null);
         }
         setError(null);
         setOpenModal(true);
@@ -140,9 +149,26 @@ const Products = () => {
         setProductName("");
         setProductType("");
         setCost("");
+        setImageFile(null);
         setEditingProduct(null);
         setError(null);
         setIsSubmitting(false);
+    };
+
+    const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                setError('Image size must be less than 5MB');
+                return;
+            }
+            if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+                setError('Only JPEG, PNG, or GIF images are allowed');
+                return;
+            }
+            setImageFile(file);
+            setError(null);
+        }
     };
 
     const handleSubmit = async () => {
@@ -161,24 +187,33 @@ const Products = () => {
         setIsSubmitting(true);
         try {
             let newProduct: Product;
-            const payload = {
-                productName,
-                productType: Number(productType),
-                cost: costValue,
-            };
+            const formData = new FormData();
+            formData.append('productName', productName);
+            formData.append('productType', productType);
+            formData.append('cost', costValue.toString());
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+
             if (editingProduct) {
-                const response = await api.put(`/products/${editingProduct.productId}/edit`, payload);
+                const response = await api.put(`/products/${editingProduct.productId}/edit`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
                 if (response.status >= 200 && response.status < 300) {
                     newProduct = {
                         ...response.data,
-                        cost: Number(response.data.cost), // Normalize cost
-                        productType: Number(response.data.productType), // Normalize productType
+                        cost: Number(response.data.cost),
+                        productType: Number(response.data.productType),
+                        imageUrl: response.data.imageUrl || editingProduct.imageUrl,
+                        product_type: productTypes.find(
+                            type => type.typeId === Number(response.data.productType)
+                        ) || { typeId: Number(response.data.productType), typeName: 'Unknown' },
                     };
                     if (!newProduct.productId || !newProduct.productName) {
                         throw new Error('Invalid response format: missing productId or productName');
                     }
-                    const updatedProducts = [...products.map(d => 
-                        d.productId === editingProduct.productId ? newProduct : d
+                    const updatedProducts = [...products.map(p => 
+                        p.productId === editingProduct.productId ? newProduct : p
                     )].sort((a, b) => {
                         const nameCompare = a.productName.localeCompare(b.productName);
                         if (nameCompare !== 0) return nameCompare;
@@ -195,15 +230,24 @@ const Products = () => {
                     throw new Error(response.data?.message || 'Update failed');
                 }
             } else {
-                const response = await api.post('/products', payload);
+                const response = await api.post('/products', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
                 if (response.status >= 200 && response.status < 300) {
                     newProduct = {
                         ...response.data,
-                        cost: Number(response.data.cost), // Normalize cost
-                        productType: Number(response.data.productType), // Normalize productType
+                        cost: Number(response.data.cost),
+                        productType: Number(response.data.productType),
+                        imageUrl: response.data.imageUrl,
+                        product_type: productTypes.find(
+                            type => type.typeId === Number(response.data.productType)
+                        ) || { typeId: Number(response.data.productType), typeName: 'Unknown' },
                     };
                     if (!newProduct.productId || !newProduct.productName) {
                         throw new Error('Invalid response format: missing productId or productName');
+                    }
+                    if (!newProduct.product_type) {
+                        console.warn(`No product type found for typeId: ${newProduct.productType}`);
                     }
                     const updatedProducts = [...products, newProduct].sort((a, b) => {
                         const nameCompare = a.productName.localeCompare(b.productName);
@@ -279,10 +323,10 @@ const Products = () => {
     };
 
     const formatCost = (cost: number | string | undefined): string => {
-    if (cost == null) return 'N/A';
-    const numCost = Number(cost);
-    return isNaN(numCost) ? 'Invalid' : `₦${numCost.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
+        if (cost == null) return 'N/A';
+        const numCost = Number(cost);
+        return isNaN(numCost) ? 'Invalid' : `₦${numCost.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
 
     const paginatedProducts = filteredProducts.slice(
         currentPage * recordsPerPage,
@@ -297,6 +341,7 @@ const Products = () => {
                     onClick={() => handleOpenModal()}
                     disableElevation
                     color="primary"
+                    disabled={isLoading}
                 >
                     Add Product
                 </Button>
@@ -307,6 +352,7 @@ const Products = () => {
                         value={searchTerm}
                         onChange={handleSearch}
                         sx={{ width: { xs: '100%', sm: 300 } }}
+                        disabled={isLoading}
                     />
                     <FormControl sx={{ minWidth: { xs: '100%', sm: 150 } }}>
                         <InputLabel>Product Type Filter</InputLabel>
@@ -314,6 +360,7 @@ const Products = () => {
                             value={productTypeFilter}
                             onChange={(e) => setProductTypeFilter(e.target.value)}
                             label="Product Type Filter"
+                            disabled={isLoading}
                         >
                             <MenuItem value="">All Product Types</MenuItem>
                             {productTypes.map((type) => (
@@ -330,97 +377,126 @@ const Products = () => {
                 </Box>
             )}
 
-            <Box sx={{ overflow: 'auto', width: { xs: '280px', sm: 'auto' } }}>
-                <Table
-                    aria-label="simple table"
-                    sx={{
-                        whiteSpace: "nowrap",
-                        mt: 2
-                    }}
-                >
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Product Name
-                                </Typography>
-                            </TableCell>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Product Type
-                                </Typography>
-                            </TableCell>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Cost
-                                </Typography>
-                            </TableCell>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Status
-                                </Typography>
-                            </TableCell>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Actions
-                                </Typography>
-                            </TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {paginatedProducts.map((product) => (
-                            <TableRow key={product.productId}>
-                                <TableCell>
-                                    <Typography
-                                        sx={{
-                                            fontSize: "15px",
-                                            fontWeight: "500",
-                                        }}
-                                    >
-                                        {product.productName}
-                                    </Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <Typography>
-                                        {product.product_type?.typeName || 'Unknown'}
-                                    </Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <Typography>
-                                        {formatCost(product.cost)}
-                                    </Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <Typography>
-                                        {product.status}
-                                    </Typography>
-                                </TableCell>
-                                <TableCell>
-                                    <IconButton onClick={() => handleOpenModal(product)}>
-                                        <EditIcon />
-                                    </IconButton>
-                                    <IconButton 
-                                        onClick={() => handleOpenDeleteDialog(product)}
-                                        disabled={isSubmitting}
-                                    >
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </Box>
+            {isLoading ? (
+                <Box display="flex" justifyContent="center" my={4}>
+                    <CircularProgress />
+                </Box>
+            ) : (
+                <>
+                    <Box sx={{ overflow: 'auto', width: { xs: '280px', sm: 'auto' } }}>
+                        <Table
+                            aria-label="simple table"
+                            sx={{
+                                whiteSpace: "nowrap",
+                                mt: 2
+                            }}
+                        >
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Image
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Product Name
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Product Type
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Cost
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Status
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Actions
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {paginatedProducts.map((product) => (
+                                    <TableRow key={product.productId}>
+                                        <TableCell>
+                                            <Box
+                                                component="img"
+                                                // src={product.imageUrl || 'https://via.placeholder.com/50'}
+                                                src={`${process.env.NEXT_PUBLIC_IMAGE_BASE_URL}/${product?.product_images?.imagePath || ''}`}
+                                                alt={product.productName}
+                                                sx={{
+                                                    width: 50,
+                                                    height: 50,
+                                                    objectFit: 'cover',
+                                                    borderRadius: 1,
+                                                    display: 'block',
+                                                }}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography
+                                                sx={{
+                                                    fontSize: "15px",
+                                                    fontWeight: "500",
+                                                }}
+                                            >
+                                                {product.productName}
+                                                
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography>
+                                                {product.product_type?.typeName || 'Unknown'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography>
+                                                {formatCost(product.cost)}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography>
+                                                {product.status}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <IconButton onClick={() => handleOpenModal(product)}>
+                                                <EditIcon />
+                                            </IconButton>
+                                            <IconButton 
+                                                onClick={() => handleOpenDeleteDialog(product)}
+                                                disabled={isSubmitting}
+                                            >
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Box>
 
-            <TablePagination
-                component="div"
-                count={filteredProducts.length}
-                page={currentPage}
-                onPageChange={handleChangePage}
-                rowsPerPage={recordsPerPage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[5, 10, 25]}
-            />
+                    <TablePagination
+                        component="div"
+                        count={filteredProducts.length}
+                        page={currentPage}
+                        onPageChange={handleChangePage}
+                        rowsPerPage={recordsPerPage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        rowsPerPageOptions={[5, 10, 25]}
+                    />
+                </>
+            )}
 
             <Modal
                 open={openModal}
@@ -485,6 +561,37 @@ const Products = () => {
                             inputProps={{ min: 0, step: "0.01" }}
                             error={!!error}
                         />
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight={600} mb={1}>
+                                Product Image
+                            </Typography>
+                            <Box
+                                component="img"
+                                src={editingProduct?.imageUrl || imageFile ? URL.createObjectURL(imageFile!) : 'https://via.placeholder.com/100'}
+                                alt="Product preview"
+                                sx={{
+                                    width: 100,
+                                    height: 100,
+                                    objectFit: 'cover',
+                                    borderRadius: 1,
+                                    mb: 1,
+                                    display: 'block',
+                                }}
+                            />
+                            <Button
+                                variant="outlined"
+                                component="label"
+                                disabled={isSubmitting}
+                            >
+                                Upload Image
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/gif"
+                                    hidden
+                                    onChange={handleImageChange}
+                                />
+                            </Button>
+                        </Box>
                         {error && (
                             <Typography color="error" variant="body2" sx={{ mt: 1 }}>
                                 {error}
